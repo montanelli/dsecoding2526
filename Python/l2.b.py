@@ -7,7 +7,15 @@
 # check_pal returns a boolean: True when w is palindrome; False otherwise
 # as a further parameter, allows to choose between case-sensitive check and case-insensitive check: if case = True then words with different casing are taken as they are
 def check_pal(w, case_sensitive=True):
+    """check if a word in input is palindrome.
 
+    Keyword arguments:
+    string -- the word to evaluate
+    boolean -- a switch to decide whether to consider the letter cases
+
+    Return:
+    bool -- True when palindrome; False otherwise
+    """
     if isinstance(w, str):
         if not case_sensitive:
             w = w.lower()

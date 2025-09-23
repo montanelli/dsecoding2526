@@ -114,4 +114,5 @@ print(brands[0])  # IBM
 # brands.append("Postgres")
 # brands[0] = "Firefox"
 
-# tuples are more efficient than lists in terms of memory usage
+# Since Python does not have to build tuple structures to be modifiable, they are simpler and more efficient in terms of memory use and performance than lists
+# So in our program when we are making “temporary variables” we prefer tuples over lists
