@@ -22,8 +22,7 @@
 import sys
 import csv
 from random import choice
-
-# from termcolor import colored
+from termcolor import colored
 from datetime import datetime
 
 
@@ -43,14 +42,21 @@ def load_dictionary():
     # dict = ['the', 'of', 'and', 'to', ...]
     dict = [r[0] for r in records]
 
-    # alternativa (but explicit)
+    # alternative (but explicit)
     # dict = []
     # for r in records:
     #     dict.append(r[0])
 
-    return None
-
     # take only five-letter words
+    dict_5_letter = []
+    for w in dict:
+        if len(w) == 5:
+            dict_5_letter.append(w)
+
+    # list comprehension
+    dict_5_letter = [w for w in dict if len(w) == 5]
+
+    return dict_5_letter
 
 
 class Wordle:
@@ -64,25 +70,95 @@ class Wordle:
     colored_history = []
     tile_history = []
 
-    def __init__(self, attempts=None):
+    def __init__(self, attempts=None, testing=False):
         # set the max number of attempts
         if attempts is not None:
             self.max_attempts = attempts
 
-        # pick up a target to guess
+        # load the dictionary
         self.en_5_dict = load_dictionary()
 
-    def printWordle(self):
-        print(f"this match has {self.max_attempts} attempts")
+        # pick up a target to guess
+        self.set_target()
+        if testing:
+            self.print_target()
+
+        # play the game
+        self.play_game()
+
+    # the method has the goal to setup the target word to guess
+    # we use the choice function to pick up a random word from en_5_dict
+    def set_target(self):
+        self.target_word = choice(self.en_5_dict)
+
+    def print_target(self):
+        print(f"The target word is {self.target_word}.")
+
+    def add_to_history(self, guess):
+        self.guess_history.append(guess)
 
     def validate_guess(self, guess):
         tiles = {"correct_place": "🟩", "correct_letter": "🟨", "incorrect": "⬛"}
         guessed = []
         pattern = []
 
+    def play_game(self):
+        print("Welcome to the Wordle game!")
+        print(f"You have {self.max_attempts} attempts to guess a target word")
+        print("Enjoy the game!")
+
+        attempt = 1
+        is_guessed = False
+        # loop on attempts
+        while (attempt <= self.max_attempts) and (not is_guessed):
+
+            # loop on a single attempt
+            bad_guess = True
+            while bad_guess:
+                guess = input("Type your guess:")
+
+                # check the input and reject the guess if:
+                # the guess is not 5 letters
+                # the guess is not in the dictionary
+                # the guess is already guessed (already in the history)
+                if len(guess) != 5:
+                    print("the guess is not composed of 5 letters!")
+                elif guess not in self.en_5_dict:
+                    print("the guess is not a valid English word!")
+                elif guess in self.guess_history:
+                    print("the guess has been already attempted!")
+                else:
+                    bad_guess = False
+
+            # add the guess to the history
+            self.add_to_history(guess)
+
+            # create a feedback on the guess (validate the guess)
+            self.validate_guess(guess)
+
+            # check if the guess is the target
+            if self.target_word == guess:
+                print(
+                    f"Great! You hit the target in {attempt} tries, congratulations! Hope to see you for another match."
+                )
+                is_guessed = True
+            else:
+                print("The target is missed. Try another guess")
+
+            # increase the counter
+            attempt += 1
+
+        # code after the loop
+        # write a message only when the target is missed and the user reached the max number of attempts
+        if not is_guessed:
+            print(
+                f"Unfortunately you lose. The target was {self.target_word}. Play again"
+            )
+
 
 # main code
-mygame = Wordle()
-# mygame.printWordle()
+# mygame = Wordle()
+mygame = Wordle(2, True)
+
 
 sys.exit()
