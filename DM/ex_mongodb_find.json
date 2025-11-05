@@ -1,0 +1,44 @@
+/* retrive movies with length between 100 and 150 minutes and year after 2015. Sort result by title */
+db.movies.find({
+  $and: [
+        { length: { $gte: 100, $lte: 150
+            }
+        },
+        { year: { $gt: "2015"
+            }
+        }
+    ]
+}).sort("title": 1)
+
+
+/* retrieve the movies with at least a crew member that is not actor */  
+db.movies.find({
+    "crew.role": { $ne: "actor"
+    }
+})
+
+/* retrieve the movies where all the crew members are actors */
+/* i.e., we do not have crew members with role different from actor */
+db.movies.find({
+    "crew.role": { $not: { $elemMatch: { $ne: "actor"
+            }
+        }
+    }
+})
+
+/* retrieve the movies where all the crew members have the field "character" without empty values (check the field is existing and not empty) */ 
+db.movies.find({
+  crew: {
+    $not: {
+      $elemMatch: {
+        $or: [
+                    { character: { $exists: false
+                        }
+                    },
+                    { character: ""
+                    }
+                ]
+            }
+        }
+    }
+})
