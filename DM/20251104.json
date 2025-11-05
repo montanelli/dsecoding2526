@@ -1,0 +1,321 @@
+/* useful mongodb operators:
+$eq, $ne, $gt, $lt, $gte, $lte
+$and, $or, $not
+$in, $nin
+$exists
+$elemMatch
+*/
+
+/* find a document by id */
+db.movie.find(
+    {
+        "_id": ObjectId('690a092292287acd55e51482')
+    })
+
+/* find a document by title */
+/* 1st param expresses filtering conditions */
+/* 2nd param expresses projection conditions */
+db.movie.find(
+    {
+        "title": "Joker"
+    }, 
+    {
+        title: 1,
+        year: 1,
+        "_id": 0
+    })
+
+/* retrieve the movies directed by C. Nolan */
+db.movie.find(
+    {
+        "director.given_name": "Christopher Nolan"
+    }
+)
+
+/* retrieve the movies of 2010 */
+db.movies.find(
+    {
+        "year": "2010"
+    },
+    {
+        "title": 1,
+        "length": 1,
+        "year": 1
+    }
+)
+
+/* retrieve the movies of 2010 with length greater than 60 */
+db.movies.find(
+    {
+        "year": "2010",
+        "length": { "$gt": 60 } 
+    },
+    {
+        "title": 1,
+        "length": 1,
+        "year": 1
+    }
+)
+
+/*
+"length": { "&gt": 60 }  -> doc with a length field whose value is greater than 60 
+*/
+
+/* retrieve the movies of 2010 with length between 60 and 120 */
+db.movies.find(
+    {
+        "year": "2010",
+        "length": { 
+             "$gt": 60 ,
+             "$lt": 120  
+        }
+    },
+    {
+        "title": 1,
+        "length": 1,
+        "year": 1
+    }
+)
+
+/* alternative solution with AND operator */
+db.movies.find(
+    {
+        "year": "2010",
+        "$and": [
+            { "length": { "$gt": 60 } },
+            { "length": { "$lt": 120 } }
+        ]
+    },
+    {
+        "title": 1,
+        "length": 1,
+        "year": 1
+    }
+)
+
+/* retrieve the movies of 2010 or 2011 with length between 60 and 120 */
+db.movies.find(
+    {
+        "$or": [
+            { "year": "2010" },
+            { "year": "2011" }
+        ],
+        "$and": [
+            { "length": { "$gt": 60 } },
+            { "length": { "$lt": 120 } }
+        ]
+    },
+    {
+        "title": 1,
+        "length": 1,
+        "year": 1
+    }
+)
+
+/* alternative solution with $in */
+db.movies.find(
+    {
+        "year": { "$in": [ "2010", "2011" ] },
+        "$and": [
+            { "length": { "$gt": 60 } },
+            { "length": { "$lt": 120 } }
+        ]
+    },
+    {
+        "title": 1,
+        "length": 1,
+        "year": 1
+    }
+)
+
+/* retrieve the movies with length between 60 and 120 that are NOT from 2010 */
+db.movies.find(
+    {
+        "year": { "$ne": "2010" },
+        "$and": [
+            { "length": { "$gt": 60 } },
+            { "length": { "$lt": 120 } }
+        ]
+    },
+    {
+        "title": 1,
+        "length": 1,
+        "year": 1
+    }
+)
+
+/* retrieve the title of movies with Leonardo di Caprio */
+/* empty result: exact matchin is not finding records */
+db.movies.find(
+    {
+        "crew.given_name": "Leonardo Di Caprio"
+    }
+)
+
+/* approximate matching can be enforced by using regular expressions 
+https://www.mongodb.com/docs/manual/reference/operator/query/regex/
+*/
+/* caprio is a substring that can be prefixed by any string and followed by any string */
+db.movies.find(
+    {
+        "crew.given_name": /.*caprio.*/i
+    },
+    {
+        "title": 1,
+        "crew.given_name.$": 1 
+    }
+)
+
+/* alternative syntax using $regex */
+/* in this case, caprio must be in the end of the given_name */
+db.movies.find(
+    {
+        "crew.given_name": { "$regex": /.*caprio$/i }
+    },
+    {
+        "title": 1,
+        "crew.given_name.$": 1 
+    }
+)
+
+/* sort the result by title */
+/* the value 1 in sort means ascending order; the value -1 means descending order */
+db.movies.find(
+    {
+        "crew.given_name": { "$regex": /.*caprio$/i }
+    },
+    {
+        "title": 1,
+        "crew.given_name.$": 1 
+    }
+).sort({ "title": -1 })
+
+/* sort the result accoring to the year (ascending order) and the title (descending order) */
+/* even if the year is not in the projection, sorting is working properly */
+db.movies.find(
+    {
+        "crew.given_name": { "$regex": /.*caprio$/i }
+    },
+    {
+        "title": 1,
+        "crew.given_name.$": 1 
+    }
+).sort({ "year": 1, "title": -1 })
+
+/* count the number of movies in the result */
+db.movies.find(
+    {
+        "crew.given_name": { "$regex": /.*caprio$/i }
+    },
+    {
+        "title": 1,
+        "crew.given_name.$": 1 
+    }
+).count()
+
+/* retrieve the movies that have not received any review */
+db.movies.find(
+{
+    "ratings": { "$exists": false }
+})
+
+/* return movies where i) the ratings field is not present and ii) the ratings are present but empty */
+db.movies.find(
+{
+    "$or": [
+        {"ratings": { "$exists": false }},
+        {"ratings": ""}
+    ]
+},
+{
+    "title": 1,
+    "ratings": 1
+})
+
+
+/* retrieve the movies that have been rated on Oct 31st 2017 */
+/* this solution is not working: you cannot compare a static string "2017-10-31" against timestamp values */
+db.movies.find(
+{
+    "ratings.rating_date": "2017-10-31"
+})
+
+/* correct version */
+db.movies.find(
+{
+    "ratings.rating_date": new Date("2017-10-31")
+})
+
+/* retrieve the movies that have been rated in Nov 2017 */
+/* this solution can produce errors when a movie has more than one rating: in this case the two conditions are evaluated independently and a document is in the result if the two conditions are satisfied by two different ratings (see below the use of $elemMatch) */
+db.movies.find(
+{
+    "ratings.rating_date": { 
+        "$lte": new Date("2017-11-30"),
+        "$gte": new Date("2017-11-01")
+    }
+},
+{
+    "title": 1,
+    "ratings": 1
+})
+
+/* retrieve the movies where Leonardo DiCaprio is a producer */
+/* this is wrong */
+db.movies.find(
+{
+    "crew.given_name": "Leonardo DiCaprio",
+    "crew.role": "producer"
+},
+{ 
+    "title": 1,
+    "crew.given_name.$": 1,
+    "crew.role": 1
+}
+)
+
+/* right solution 
+https://www.mongodb.com/docs/manual/reference/operator/query/elemMatch/
+*/
+db.movies.find(
+    { 
+        { "crew": { "$type": "array" } },
+        "crew": { "$elemMatch": { 
+        "given_name": "Leonardo DiCaprio",
+        "role": "producer" 
+    } } 
+    },
+    { 
+        "title": 1,
+        "crew.given_name.$": 1,
+        "crew.role": 1
+    }
+)
+
+
+/* retrieve the movies that have been rated in Nov 2017 where Leonardo di Caprio is a producer */
+db.movie.find(
+{
+	"ratings": { "$elemMatch": { 
+		"rating_date": {
+			"$gte": new Date("2017-11-01"),
+			"$lte": new Date("2017-11-30")
+		} 
+	} },
+	"crew": { "$elemMatch": { 
+		"give_name": "Leonardo DiCaprio", 
+		"role": "producer" 
+		} 
+	} 
+}, 
+{
+	"_id": 0,
+	"title": 1,
+	"crew.role": 1,
+	"crew.give_name.$": 1,
+	"ratings.rating_date": 1
+});
+
+/* in the above example, the behavior of the $ operator is not as expected. The reason is that only ONE array field should appear in the query document (additional array fields in the query document like in the above example may lead to undefined behavior). Use the filter operator and the aggregation pipeline to fix this issue:
+https://docs.mongodb.com/manual/reference/operator/aggregation/filter/#mongodb-expression-exp.-filter */
+
