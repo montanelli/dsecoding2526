@@ -91,16 +91,72 @@ class Wordle:
     def set_target(self):
         self.target_word = choice(self.en_5_dict)
 
-    def print_target(self):
-        print(f"The target word is {self.target_word}.")
+    def print_target(self, f=None):
+        if f is not None:
+            f.write(f"The target word is {self.target_word}.\n")
+        else:
+            print(f"The target word is {self.target_word}.")
 
     def add_to_history(self, guess):
         self.guess_history.append(guess)
+
+    def print_last_guess(self):
+        print(self.guess_history[-1])
+
+    def print_last_tile(self):
+        print(self.tile_history[-1])
+
+    def print_history(self, f=None):
+        for i, g in enumerate(self.guess_history):
+            if f is not None:
+                f.write(f"Attempt {i+1}: {g}.\n")
+            else:
+                print(f"Attempt {i+1}: {g}")
 
     def validate_guess(self, guess):
         tiles = {"correct_place": "🟩", "correct_letter": "🟨", "incorrect": "⬛"}
         guessed = []
         pattern = []
+
+        correct_places = list(map(lambda x, y: x == y, guess, self.target_word))
+        # print(correct_places)
+
+        # eliminate the letters in the green position (correct_places)
+        target = [y if not x else "-" for x, y in zip(correct_places, self.target_word)]
+
+        # print(target)
+
+        correct_letters = list(map(lambda x: x in target, guess))
+
+        # print(correct_letters)
+
+        for i, (x, y) in enumerate(zip(correct_places, correct_letters)):
+            if x:
+                guessed.append(colored(guess[i], "green"))
+                pattern.append(tiles["correct_place"])
+            elif y:
+                guessed.append(colored(guess[i], "yellow"))
+                pattern.append(tiles["correct_letter"])
+            else:
+                guessed.append(guess[i])
+                pattern.append(tiles["incorrect"])
+
+        # print(guessed)
+        # print(pattern)
+        self.colored_history.append("".join(guessed))
+        self.tile_history.append("".join(pattern))
+
+    def save_game(self):
+        # open with "a" (append); "w" (write)
+        f = open("wordle.txt", "a")
+        now = datetime.now()
+        # example of datetime formatting 10/11/2025 15:44:35
+        now_string = now.strftime("%d/%m/%Y %H:%M:%S")
+        f.write(f"Wordle is playes on {now_string}.\n")
+        self.print_target(f)
+        self.print_history(f)
+        f.write("----------\n\n")
+        f.close
 
     def play_game(self):
         print("Welcome to the Wordle game!")
@@ -136,6 +192,9 @@ class Wordle:
             # create a feedback on the guess (validate the guess)
             self.validate_guess(guess)
 
+            self.print_last_guess()
+            self.print_last_tile()
+
             # check if the guess is the target
             if self.target_word == guess:
                 print(
@@ -154,6 +213,8 @@ class Wordle:
             print(
                 f"Unfortunately you lose. The target was {self.target_word}. Play again"
             )
+
+        self.save_game()
 
 
 # main code
