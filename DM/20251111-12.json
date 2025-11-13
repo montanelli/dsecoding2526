@@ -1,0 +1,651 @@
+/* mongodb operators considered in the next classes (aggregation framework):
+-- $project
+-- $match 
+-- $group
+-- $sum
+-- $avg
+-- $size
+-- $sort
+-- $unwind
+
+*/
+/* retrieve the number of movies from 2010 */
+db.movies.find(
+{
+    "year": "2010"
+}).count()
+
+/* alternative solution with aggregate */
+db.movies.aggregate(
+[
+    {
+        "$match": {
+            "year": "2010"
+        }
+    },
+    {
+        "$count": "number of movies from 2010"
+    }
+]
+)
+
+/* alternative solution with $group */
+db.movies.aggregate(
+[
+    {
+        "$match": {
+            "year": "2010"
+        }
+    },
+    {
+        "$group": {
+            "_id": null,
+            "number of 2010 movies": {
+                "$sum": 1
+            }
+        }
+    }
+]
+)
+
+/* further solution with $project to refine the readability of the result */
+db.movies.aggregate(
+[
+    {
+        "$match": {
+            "year": "2010"
+        }
+    },
+    {
+        "$group": {
+            "_id": null,
+            "number of movies": {
+                "$sum": 1
+            }
+        }
+    },
+    {
+        "$project": {
+            "year": "2010",
+            "number of movies": 1,
+            "_id": 0
+        }
+    }
+]
+)
+
+/* is the following solution equivalent to the previous one? */
+/* this is equivalent in terms of result, but more work is required in addition to the previous solution (less efficient) */
+db.movies.aggregate(
+[
+    {
+        "$group": {
+            "_id": "$year",
+            "number of movies": {
+                "$sum": 1
+            }
+        }
+    },
+    {
+        "$match": {
+            "_id": "2010"
+        }
+    },
+    {
+        "$project": {
+            "year": "$_id",
+            "number of movies": 1,
+            "_id": 0
+        }
+    }
+]
+)
+
+/* retrieve the number of movies by year */
+/* sort the result by year (ascending order) */
+db.movies.aggregate(
+[
+    {
+        "$group": {
+            "_id": "$year",
+            "number of movies": {
+                "$sum": 1
+            }
+        }
+    },
+    {
+        "$sort": {
+            "_id": 1
+        }
+    }
+]
+)
+
+/* sort the result by number of movies (descending order) and use the year as a second criterion when the number of movies is the same (ascending order) */
+db.movies.aggregate(
+[
+    {
+        "$group": {
+            "_id": "$year",
+            "number of movies": {
+                "$sum": 1
+            }
+        }
+    },
+    {
+        "$sort": {
+            "number of movies": -1,
+            "_id": 1
+        }
+    }
+]
+)
+
+/* retrieve the number of movies with Leonardo DiCaprio */
+db.movies.aggregate(
+[
+    {
+        "$match": {
+            "crew.given_name": "Leonardo DiCaprio"
+        }
+    },
+    {
+        "$count": "DiCaprio movies"
+    }
+]
+)
+
+/* retrieve the number of movies with Leonardo DiCaprio as actor */
+/* this is not sufficient: a document (movie) can contain DiCaprio with any role and another person as an actor and it satisfies the $match operation */
+db.movies.aggregate(
+[
+    {
+        "$match": {
+            "crew.given_name": "Leonardo DiCaprio",
+            "crew.role": "actor"
+        }
+    },
+    {
+        "$count": "DiCaprio movies"
+    }
+]
+)
+
+/* correct solution */
+db.movies.aggregate(
+[
+    {
+        "$match": {
+            "crew": {
+                "$elemMatch": {
+                    "given_name": "Leonardo DiCaprio",
+                    "role": "actor"
+                }
+            }
+        }
+    },
+    {
+        "$count": "DiCaprio movies"
+    }
+]
+)
+
+/* alternative solution with $unwind */
+db.movies.aggregate(
+[
+    {
+        "$unwind": "$crew"
+    },
+    {
+        "$match": {
+            "crew.given_name": "Leonardo DiCaprio",
+            "crew.role": "actor"
+        }
+    },
+    {
+        "$count": "DiCaprio movies"
+    }
+]
+)
+
+/* meaning of unwind */
+/* a document with a crew as an array */
+{
+    "title": "Inception",
+    "crew": [
+        {
+            "given_name": "Leonardo DiCaprio",
+            "role": "actor"
+        },
+        {
+            "given_name": "Marion Cotillard",
+            "role": "actor"
+        },
+        {
+            "given_name": "Christopher Nolan",
+            "role": "director"
+        },
+    ]
+}
+/* result of unwind on the crew array: */
+{
+    "title": "Inception",
+    "crew": {
+        "given_name": "Leonardo DiCaprio",
+        "role": "actor"
+    }
+}
+
+{
+    "title": "Inception",
+    "crew": {
+        "given_name": "Marion Cotillard",
+        "role": "actor"
+    },
+}
+
+{
+    "title": "Inception",
+    "crew": {
+        "given_name": "Christopher Nolan",
+        "role": "director"
+    },
+}
+/* retrieve the overall length of movies with Leonardo DiCaprio */
+db.movies.aggregate(
+[
+    {
+        "$match": {
+            "crew.given_name": "Leonardo DiCaprio"
+        }
+    },
+    {
+        "$group": {
+            "_id": null,
+            "number of DiCaprio movies": {
+                "$sum": 1
+            },
+            "duration of DiCaprio movies": {
+                "$sum": "$length"
+            }
+        }
+    }
+])
+
+
+/* retrieve the average length of movies with Leonardo DiCaprio */
+/* we use $avg and we compare the result with a manually calculated average */
+db.movies.aggregate(
+[
+    {
+        "$match": {
+            "crew.given_name": "Leonardo DiCaprio"
+        }
+    },
+    {
+        "$group": {
+            "_id": null,
+            "number of DiCaprio movies": {
+                "$sum": 1
+            },
+            "duration of DiCaprio movies": {
+                "$sum": "$length"
+            },
+            "average duration of DiCaprio movies": {
+                "$avg": "$length"
+            }
+        }
+    },
+    {
+        "$project": {
+            "_id": 0,
+            "average duration of DiCaprio movies": 1,
+            "division of sum by count": {
+                "$divide": [
+                    "$duration of DiCaprio movies",
+                    "$number of DiCaprio movies"
+                ]
+            }
+        }
+    }
+])
+
+/* retrieve the movies of DiCaprio without length */
+db.movies.find(
+    {
+    "crew.given_name": "Leonardo DiCaprio",
+    "length": {
+        "$exists": false
+    }
+}
+).count()
+/* we have 12 movies of DiCaprio without length */
+/* refine the previous query to calculate the average without the movies without length */
+db.movies.aggregate(
+[
+    {
+        "$match": {
+            "crew.given_name": "Leonardo DiCaprio",
+            "length": {
+                "$exists": true
+            }
+        }
+    },
+    {
+        "$group": {
+            "_id": null,
+            "number of DiCaprio movies": {
+                "$sum": 1
+            },
+            "duration of DiCaprio movies": {
+                "$sum": "$length"
+            },
+            "average duration of DiCaprio movies": {
+                "$avg": "$length"
+            }
+        }
+    },
+    {
+        "$project": {
+            "_id": 0,
+            "average duration of DiCaprio movies": 1,
+            "division of sum by count": {
+                "$divide": [
+                    "$duration of DiCaprio movies",
+                    "$number of DiCaprio movies"
+                ]
+            }
+        }
+    }
+])
+
+/* retrieve the movies with duplicate title */
+db.movies.aggregate(
+[
+    {
+        "$group": {
+            "_id": "$title",
+            "number of movies with same title": {
+                "$sum": 1
+            }
+        }
+    },
+    {
+        "$match": {
+            "number of movies with same title": {
+                "$gt": 1
+            }
+        }
+    }
+])
+
+
+/* retrieve the number of persons in the crew of each movie */
+/* the $type operator is used to exclude docs with crew that is not an array. $size applied to a crew element that is not an array produces an error */
+db.movies.aggregate(
+[
+    {
+        "$match": {
+            "crew": {
+                "$type": "array"
+            }
+        }
+    },
+    {
+        "$project": {
+            "title": 1,
+            "year": 1,
+            "number of persons in crew": {
+                "$size": "$crew"
+            }
+        }
+    }
+])
+
+/* in case crew is missing, we add an emtpy field so that movies without crew are counted to zero. Have a look to $ifNull
+https://www.mongodb.com/docs/manual/reference/operator/aggregation/ifNull/
+*/
+db.movies.aggregate(
+[
+    {
+        "$project": {
+            "title": 1,
+            "year": 1,
+            "crew": {
+                "$ifNull": [
+                    "$crew",
+                    []
+                ]
+            }
+        }
+    },
+    {
+        "$project": {
+            "title": 1,
+            "year": 1,
+            "number of persons in crew": {
+                "$size": "$crew"
+            }
+        }
+    }
+])
+
+/* consider these two docs. In the first case we have the crew element and we count the number of items in the crew */
+{
+    "title": "inception",
+    "year": "2010",
+    "crew": [
+        {
+            "given_name": "Di Caprio"
+        }
+    ]
+}
+/* in this case we do not have the crew element and we consider the doc as it is characterized by crew: [] */
+{
+    "title": "unbroken",
+    "year": "2011"
+}
+/* retrieve the movies with empty crew */
+db.movies.aggregate(
+[
+    {
+        "$project": {
+            "title": 1,
+            "year": 1,
+            "crew": {
+                "$ifNull": [
+                    "$crew",
+                    []
+                ]
+            }
+        }
+    },
+    {
+        "$project": {
+            "title": 1,
+            "year": 1,
+            "number of persons in crew": {
+                "$size": "$crew"
+            }
+        }
+    },
+    {
+        "$match": {
+            "number of persons in crew": 0
+        }
+    }
+])
+
+/* to further increase the robustness, manage also the case where crew is existing but it is not an array 
+https://www.mongodb.com/docs/manual/reference/operator/aggregation/cond/ */
+db.movies.aggregate( [
+    {
+        "$project": {
+            "title": 1,
+            "year": 1,
+            "crew": {
+                "$ifNull": [
+                    "$crew",
+                    []
+                ]
+            }
+        }
+    },
+    {
+        "$project": {
+            "title": 1,
+            "year": 1,
+            "crew": {
+                "$cond": [
+                    {
+                        "$isArray": "$crew"
+                    },
+                    "$crew",
+                    [
+                        "$crew"
+                    ]
+                ]
+            }
+        }
+    },
+    {
+        "$project": {
+            "_id": 0,
+            "title": 1,
+            "year": 1,
+            "Number of persons in the crew": {
+                "$size": "$crew"
+            }
+        }
+    }
+]);
+
+/* alternative solution based on unwind */
+/* retrieve the number of persons in the crew of each movie */
+/* focus on a movie for observing the result on just one movie:
+ { "$match": { "title": "The Fighting Generation" } }, */
+db.movies.aggregate(
+[
+    {
+        "$unwind": "$crew"
+    },
+    {
+        "$group": {
+            "_id": "$_id",
+            "number of persons in the crew": {
+                "$sum": 1
+            }
+        }
+    }
+])
+
+
+/* Edit the above solution to include docs with empty/missing crew and count to zero.  */
+/* add the following stage at the end of the pipeline to check:
+{ "$match": { "number of persons in the crew": 0 } } */
+db.movies.aggregate(
+[
+    {
+        "$unwind": {
+        path: "$crew",
+        preserveNullAndEmptyArrays: true
+        }
+    },
+    {
+        "$group": {
+            "_id": "$_id",
+            "number of persons in the crew": {
+                "$sum": {
+                    "$cond": [
+                        {
+                            "$eq": [
+                                {
+                                    "$type": "$crew"
+                                },
+                                "missing"
+                            ]
+                        },
+                        0,
+                        1
+                    ]
+                }
+            }
+        }
+    }
+])
+
+/* retrieve the number of persons in the crew of each movie (add the movie title in the result) */
+db.movies.aggregate(
+[
+    {
+        "$unwind": "$crew"
+    },
+    {
+        "$group": {
+            "_id": {
+                "id": "$_id",
+                "title": "$title"
+            },
+            "number of persons in the crew": {
+                "$sum": 1
+            }
+        }
+    }
+])
+
+/* retrieve the title and the score of movies rated in november 2017 */
+/* this solution is incorrect if a movie can have multiple ratings */
+db.movies.aggregate(
+[
+    {
+        "$match": {
+            "ratings.rating_date": {
+                "$gte": new Date("2017-11-01"),
+                "$lte": new Date("2017-11-30")
+            }
+        }
+    }
+]
+)
+
+/* correct solution */
+db.movies.aggregate(
+[
+    {
+        "$match": {
+            "ratings": {
+                "$elemMatch": {
+                    "rating_date": {
+                        "$gte": new Date("2017-11-01"),
+                        "$lte": new Date("2017-11-30")
+                    }
+                }
+            }
+        }
+    }
+]
+)
+
+/* alternative solution with $unwind */
+db.movies.aggregate(
+[
+    {
+        "$unwind": "$ratings"
+    },
+    {
+        "$match": {
+            "ratings.rating_date": {
+                "$gte": new Date("2017-11-01"),
+                "$lte": new Date("2017-11-30")
+            }
+        }
+    },
+    {
+        "$project": {
+            "title": 1,
+            "ratings.score": 1,
+            "ratings.rating_date": 1
+        }
+    }
+]
+)

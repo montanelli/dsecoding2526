@@ -1,0 +1,190 @@
+/* retrieve the movies with unique title */
+db.movie.aggregate( [
+	{
+		"$group": {
+			"_id": "$title",
+			"Number of movies per title": {
+				"$sum": 1
+			}
+		}
+	},
+	{
+		"$match": {
+			"Number of movies per title": 1
+		}
+	},
+	{
+		"$project": {
+			"_id": 0,
+			"unique title of movie": "$_id"
+		}
+	}
+] );
+
+/* retrieve the number of movies with unique title */
+db.movie.aggregate( [
+	{
+		"$group": {
+			"_id": "$title",
+			"Number of movies per title": {
+				"$sum": 1
+			}
+		}
+	},
+	{
+		"$match": {
+			"Number of movies per title": 1
+		}
+	},
+	{
+		"$group": {
+			"_id": null,
+			"Number of movies with different title": {
+				"$sum": 1
+			}
+		}
+	},
+] );
+
+/* retrieve the average number of persons in the crew of each movie */
+db.movies.aggregate([
+	{
+		"$match": {
+			"crew": {
+				"$type": "array"
+			}
+		}
+	},
+	{
+		"$project": {
+			"movie_id": 1,
+			"title": 1,
+			"nic": {
+				"$size": "$crew"
+			}
+		}
+	},
+	{
+		"$group": {
+			"_id": null,
+			"avg number of persons": {
+				"$avg": "$nic"
+			}
+		}
+	}
+])
+
+db.movies.aggregate( [
+	{
+		"$unwind": "$crew"
+	},
+	{
+		"$group": {
+			"_id": "$movie_id",
+			"crew size": {
+				"$sum": 1
+			}
+		}
+	},
+	{
+		"$group": {
+			"_id": null,
+			"avg crew size": {
+				"$avg": "$crew size"
+			}
+		}
+	}
+] );
+
+/* retrieve the common movies of Leonardo diCaprio and Tom Hardy */
+db.movies.find({
+	"$and": [
+		{
+			"crew.given_name": "Tom Hardy"
+		},
+		{
+			"crew.given_name": "Leonardo DiCaprio"
+		}
+	]
+})
+
+/* check that the two persons cover the role "actor" */
+db.movies.find({
+	"$and": [
+		{
+			"crew": {
+				"$elemMatch": {
+					"given_name": "Tom Hardy",
+					"role": "actor"
+				}
+			}
+		},
+		{
+			"crew": {
+				"$elemMatch": {
+					"given_name": "Leonardo DiCaprio",
+					"role": "actor"
+				}
+			}
+		}
+	]
+})
+
+/* retrieve the number of movies of each actor */
+db.movies.aggregate([
+	{
+		"$unwind": "$crew"
+	},
+	{
+		"$match": {
+			"crew.role": "actor"
+		}
+	},
+	{
+		"$group": {
+			"_id": {
+				"person": "$crew.person_id",
+				"name": "$crew.give_name"
+			},
+			"Number of movies": {
+				"$sum": 1
+			}
+		}
+	}
+]);
+
+
+/* retrieve the actors that participated to more than 10 movies */
+db.movies.aggregate([
+	{
+		"$unwind": "$crew"
+	},
+	{
+		"$match": {
+			"crew.role": "actor"
+		}
+	},
+	{
+		"$group": {
+			"_id": {
+				"person": "$crew.person_id",
+				"name": "$crew.give_name"
+			},
+			"Number of movies": {
+				"$sum": 1
+			}
+		}
+	},
+	{
+		"$match": {
+			"Number of movies": {
+				"$gt": 10
+			}
+		}
+	},
+	{
+		"$sort": {
+			"Number of movies": -1
+		}
+	}
+]);
